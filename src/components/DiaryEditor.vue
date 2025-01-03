@@ -52,7 +52,7 @@
   </template>
   
   <script setup lang="ts">
-  import { ref, computed, onMounted } from 'vue'
+  import { ref, computed } from 'vue'
   import SettingsModal from './SettingsModal.vue'
   
   const content = ref('')
@@ -61,7 +61,6 @@
   const tagToDelete = ref('')
   let deleteTimeout: number | null = null
   const showSettings = ref(false)
-  const lastClickTime = ref(0)
   const isSubmitting = ref(false)
   const showSuccess = ref(false)
   
@@ -75,7 +74,7 @@
   
   const handleTagInput = (e: KeyboardEvent) => {
     if (e.key === 'Enter') {
-      const tag = newTag.value.trim()
+      const tag = newTag.value.trim().replace(/\s+/g, '')
       if (tag && !tags.value.has(tag)) {
         tags.value.add(tag)
         newTag.value = ''
@@ -164,9 +163,7 @@
   .container {
     max-width: 800px;
     margin: 0 auto;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
+    padding: 40px 20px;
   }
 
   .content-wrapper {
@@ -260,10 +257,14 @@
     position: relative;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 12px;
+    margin-top: 20px;
   }
 
   .success-message {
+    position: absolute;
+    left: calc(50% + 70px);
     color: #4CAF50;
     font-size: 14px;
   }

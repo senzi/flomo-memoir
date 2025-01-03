@@ -1,6 +1,6 @@
 # Flomo Memoir
 
-Flomo Memoir 是一个优雅的日记写作工具，专注于帮助用户记录每一天的想法和感悟。它与 Flomo 完美集成，让你的思考更有条理，记录更加便捷。
+Flomo Memoir 是一个优雅的日记写作工具，专注于帮助用户记录每一天的想法和感悟。它与 Flomo 完美集成，让你的思考更有条理，记录更加便捷。现在提供跨平台的桌面应用，让写作体验更加流畅！
 
 ## ✨ 特点
 
@@ -8,23 +8,41 @@ Flomo Memoir 是一个优雅的日记写作工具，专注于帮助用户记录�
 - 🏷️ **智能标签**：支持标签管理，轻松整理和分类你的想法
 - 🔄 **Flomo 集成**：无缝同步到你的 Flomo 账户
 - 🎨 **优雅体验**：精心设计的动画和交互，带来流畅的使用体验
-- 📱 **响应式设计**：完美适配各种设备屏幕
+- 💻 **跨平台支持**：提供 macOS 和 Windows 桌面应用
 
 ## 🚀 快速开始
+
+### 桌面应用
+
+1. 访问 [Releases](https://github.com/yourusername/flomo-memoir/releases) 页面
+2. 下载适合你操作系统的安装包：
+   - macOS: `.dmg` 文件
+   - Windows: `.msi` 文件
+3. 安装并运行应用
+
+### 开发者指南
 
 1. **安装依赖**
    ```bash
    pnpm install
    ```
 
-2. **运行开发服务器**
+2. **启动开发服务器**
    ```bash
+   # 网页开发模式
    pnpm dev
+
+   # 桌面应用开发模式
+   pnpm tauri dev
    ```
 
-3. **构建生产版本**
+3. **构建**
    ```bash
+   # 构建网页版本
    pnpm build
+
+   # 构建桌面应用
+   pnpm tauri build
    ```
 
 ## 📝 使用说明
@@ -54,7 +72,8 @@ Flomo Memoir 是一个优雅的日记写作工具，专注于帮助用户记录�
 
 - Vue 3 + TypeScript
 - Vite
-- Tauri (计划中)
+- Tauri
+- GitHub Actions（自动化发布）
 
 ## 📄 许可证
 
