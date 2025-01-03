@@ -71,7 +71,7 @@ export async function reviewDiary(content: string, tags: string[]): Promise<Revi
       if (response.status === 401) {
         throw new Error('API 密钥无效，请检查设置中的 API Key')
       }
-      throw new Error('API 请求失败')
+      throw new Error(`API 请求失败: ${errorData?.error?.message || '未知错误'}`)
     }
 
     const data = await response.json()

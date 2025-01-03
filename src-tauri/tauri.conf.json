@@ -13,15 +13,15 @@
     "windows": [
       {
         "title": "flomo memoir",
-        "width": 1000,
-        "height": 800,
-        "minWidth": 800,
-        "minHeight": 600,
+        "width": 1250,
+        "height": 970,
+        "minWidth": 1000,
+        "minHeight": 776,
         "resizable": true,
         "fullscreen": false,
         "center": true,
-        "visible": false,
-        "focus": false
+        "visible": true,
+        "focus": true
       }
     ],
     "security": {
