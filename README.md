@@ -1,5 +1,65 @@
-# Vue 3 + TypeScript + Vite
+# Flomo Memoir
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Flomo Memoir 是一个优雅的日记写作工具，专注于帮助用户记录每一天的想法和感悟。它与 Flomo 完美集成，让你的思考更有条理，记录更加便捷。
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+## ✨ 特点
+
+- 🎯 **专注写作**：简洁的界面设计，让你专注于写作本身
+- 🏷️ **智能标签**：支持标签管理，轻松整理和分类你的想法
+- 🔄 **Flomo 集成**：无缝同步到你的 Flomo 账户
+- 🎨 **优雅体验**：精心设计的动画和交互，带来流畅的使用体验
+- 📱 **响应式设计**：完美适配各种设备屏幕
+
+## 🚀 快速开始
+
+1. **安装依赖**
+   ```bash
+   pnpm install
+   ```
+
+2. **运行开发服务器**
+   ```bash
+   pnpm dev
+   ```
+
+3. **构建生产版本**
+   ```bash
+   pnpm build
+   ```
+
+## 📝 使用说明
+
+1. **设置 API**
+   - 点击右上角的 ⚙️ 图标
+   - 访问 [Flomo API 设置页面](https://v.flomoapp.com/mine?source=incoming_webhook) 获取你的 API URL
+   - 将 API URL 填入设置面板
+
+2. **写日记**
+   - 在主文本框中写下你的想法
+   - 使用标签功能对内容进行分类（在标签输入框中输入并按回车添加）
+   - 点击发布按钮保存内容
+
+3. **管理标签**
+   - 点击标签可以删除（需要二次确认）
+   - 标签会自动与内容一起保存到 Flomo
+
+## 🎯 开发计划
+
+- [ ] **AI 写作助手**：集成 AI 审阅功能，为日记内容提供改进建议，帮助用户提升写作水平
+- [ ] **标签分析**：添加标签使用统计和分析功能
+- [ ] **主题定制**：支持自定义主题和深色模式
+- [ ] **快捷键支持**：添加常用操作的快捷键
+
+## 🛠️ 技术栈
+
+- Vue 3 + TypeScript
+- Vite
+- Tauri (计划中)
+
+## 📄 许可证
+
+[MIT License](LICENSE)
+
+## 🤝 贡献
+
+欢迎提出建议和改进意见！请随时提交 Issue 或 Pull Request。
