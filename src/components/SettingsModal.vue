@@ -6,42 +6,88 @@
         <button class="close-btn" @click="$emit('close')">×</button>
       </div>
       <div class="modal-content">
-        <a href="https://v.flomoapp.com/mine?source=incoming_webhook" 
+        <div class="setting-section">
+          <h3>Flomo API 配置</h3>
+          <a href="https://v.flomoapp.com/mine?source=incoming_webhook" 
              target="_blank" 
              rel="noopener noreferrer"
           >点击这里</a> 
           获取你的 API URL。
-        <br>
-        <p class="guide-text">
-          然后在下方输入你的 Flomo API URL。
-        </p>
-        <input 
-          type="text" 
-          v-model="apiUrl" 
-          placeholder="输入 API URL" 
-          class="api-input"
-        >
-        <button @click="save" class="save-btn">保存</button>
+          <br>
+          <p class="guide-text">
+            然后在下方输入你的 Flomo API URL。
+          </p>
+          <input 
+            type="text" 
+            v-model="apiUrl" 
+            placeholder="输入 API URL" 
+            class="api-input"
+          >
+        </div>
+        <div class="setting-section">
+          <h3>AI审阅配置</h3>
+          <div class="input-group">
+            <label>Base URL</label>
+            <input
+              v-model="llmConfig.baseUrl"
+              type="text"
+              placeholder="Base URL"
+            />
+          </div>
+          <div class="input-group">
+            <label>API Key</label>
+            <input
+              v-model="llmConfig.apiKey"
+              type="password"
+              placeholder="API Key"
+            />
+          </div>
+          <div class="input-group">
+            <label>Model</label>
+            <input
+              v-model="llmConfig.model"
+              type="text"
+              placeholder="Model"
+            />
+          </div>
+        </div>
+        <div class="button-container">
+          <button @click="save" class="save-btn">保存</button>
+        </div>
       </div>
     </div>
   </template>
   
   <script setup lang="ts">
   import { ref, onMounted } from 'vue'
+  import { getLocalStorage, setLocalStorage } from '../utils/storage'
   
   const apiUrl = ref('')
+  const llmConfig = ref({
+    baseUrl: 'https://api.moonshot.cn/v1',
+    apiKey: '',
+    model: 'moonshot-v1-auto'
+  })
   
   onMounted(() => {
-    apiUrl.value = localStorage.getItem('apiUrl') || ''
+    apiUrl.value = getLocalStorage('apiUrl', '') || ''
+    llmConfig.value = getLocalStorage('llm_config', {
+      baseUrl: 'https://api.moonshot.cn/v1',
+      apiKey: '',
+      model: 'moonshot-v1-auto'
+    })
   })
   
   const save = () => {
-    emit('save', apiUrl.value)
+    setLocalStorage('apiUrl', apiUrl.value)
+    setLocalStorage('llm_config', llmConfig.value)
+    emit('save', apiUrl.value, llmConfig.value)
+    emit('close')
   }
   
   const emit = defineEmits<{
     (e: 'close'): void
-    (e: 'save', url: string): void
+    (e: 'save', url: string, config: typeof llmConfig.value): void
   }>()
   </script>
   
@@ -108,7 +154,8 @@
   }
 
   .guide-text {
-    margin: 0 0 20px;
+    margin-top: 12px;
+    margin-bottom: 8px;
     color: #666;
     line-height: 1.5;
   }
@@ -145,19 +192,50 @@
     border-color: #4CAF50;
   }
 
-  .save-btn {
+  .setting-section {
+    margin: 1.5rem 0;
+  }
+
+  .setting-section h3 {
+    margin-bottom: 0.8rem;
+    color: #333;
+  }
+
+  .input-group {
+    margin: 0.8rem 0;
+  }
+
+  .input-group label {
+    display: block;
+    margin-bottom: 0.4rem;
+    color: #666;
+  }
+
+  .input-group input {
     width: 100%;
-    padding: 12px;
-    background: #4CAF50;
+    padding: 0.6rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9rem;
+  }
+
+  .button-container {
+    margin-top: 20px;
+    text-align: center;
+  }
+
+  .save-btn {
+    background-color: #4CAF50;
     color: white;
+    padding: 10px 30px;
     border: none;
     border-radius: 6px;
     cursor: pointer;
     font-size: 16px;
-    transition: background 0.3s;
+    transition: background-color 0.3s;
   }
 
   .save-btn:hover {
-    background: #45a049;
+    background-color: #45a049;
   }
   </style>

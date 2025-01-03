@@ -1,301 +1,499 @@
 <template>
-    <div class="container">
-      <div class="content-wrapper">
-        <div class="header">
-          <h1>Flomo Memoir</h1>
-          <span class="settings-btn" @click="toggleSettings">⚙️</span>
+  <div class="container">
+    <div class="content-wrapper">
+      <div class="header">
+        <h1>Flomo Memoir</h1>
+        <button class="settings-btn" @click="toggleSettings">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="8" fill="#42b883"/>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="date-header">{{ dateHeader }}</div>
+      
+      <div class="input-wrapper">
+        <textarea 
+          v-model="content"
+          class="diary-input" 
+          placeholder="写点什么..."
+          @keydown.tab.prevent="handleTab"
+        ></textarea>
+        <div class="word-count">{{ wordCount }} 字</div>
+      </div>
+      
+      <div class="tag-section">
+        <div class="section-title">标签</div>
+        <div class="tag-input-container">
+          <input 
+            type="text" 
+            class="tag-input" 
+            placeholder="输入标签后按回车添加" 
+            @keypress="handleTagInput"
+            v-model="newTag"
+          >
+          <div class="tag-container">
+            <span 
+              v-for="tag in tags" 
+              :key="tag"
+              class="tag"
+              :class="{ delete: tagToDelete === tag }"
+              @click="handleTagClick(tag)"
+            >{{ tag }}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="button-group">
+        <button @click="reviewDiary" class="review-btn" :disabled="!content || isReviewing">
+          {{ isReviewing ? '生成中...' : 'AI 审阅' }}
+        </button>
+        <button @click="submitDiary" class="submit-btn" :disabled="!content">发布</button>
+      </div>
+
+      <div v-if="reviewResult" class="review-result">
+        <div class="general-comment">
+          <h3>整体评价</h3>
+          <p>{{ reviewResult.general_comment }}</p>
         </div>
         
-        <div class="date-header">{{ dateHeader }}</div>
-        
-        <textarea 
-          class="diary-input" 
-          placeholder="写下今天的想法..."
-          v-model="content"
-        ></textarea>
-        
-        <div class="tag-section">
-          <div class="tag-input-container">
-            <input 
-              type="text" 
-              class="tag-input" 
-              placeholder="输入标签后按回车添加" 
-              @keypress="handleTagInput"
-              v-model="newTag"
-            >
-            <div class="tag-container">
-              <span 
-                v-for="tag in tags" 
-                :key="tag"
-                class="tag"
-                :class="{ delete: tagToDelete === tag }"
-                @click="handleTagClick(tag)"
-              >{{ tag }}</span>
+        <div class="suggestions">
+          <h3>具体建议</h3>
+          <div v-for="(item, index) in reviewResult.suggestions" :key="index" class="suggestion-item">
+            <p class="suggestion">{{ item.suggestion }}</p>
+            <div class="comparison">
+              <div class="original">
+                <span class="label">原文：</span>
+                <span class="text">{{ item.original }}</span>
+              </div>
+              <div class="improved">
+                <span class="label">建议：</span>
+                <span class="text">{{ item.improved }}</span>
+              </div>
             </div>
           </div>
         </div>
-        
-        <div class="submit-section">
-          <button class="submit-btn" @click="submitDiary" :disabled="isSubmitting">发布</button>
-          <transition name="fade">
-            <span v-if="showSuccess" class="success-message">✨ 发布成功</span>
-          </transition>
-        </div>
       </div>
-
-      <SettingsModal 
-        v-if="showSettings"
-        @close="toggleSettings"
-        @save="saveSettings"
-      />
+      
+      <div class="submit-section">
+        <transition name="fade">
+          <span v-if="showSuccess" class="success-message">✨ 发布成功</span>
+        </transition>
+      </div>
     </div>
-  </template>
+
+    <SettingsModal 
+      v-if="showSettings" 
+      @close="showSettings = false"
+      @save="saveSettings"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, nextTick } from 'vue'
+import SettingsModal from './SettingsModal.vue'
+import { reviewDiary as reviewDiaryApi } from '../api/llm'
+import { setLocalStorage } from '../utils/storage'
+
+interface ReviewResult {
+  general_comment: string
+  suggestions: {
+    suggestion: string
+    original: string
+    improved: string
+  }[]
+}
+
+const content = ref('')
+const tags = ref<Set<string>>(new Set())
+const newTag = ref('')
+const tagToDelete = ref('')
+let deleteTimeout: number | null = null
+const showSettings = ref(false)
+const isSubmitting = ref(false)
+const showSuccess = ref(false)
+const reviewResult = ref<ReviewResult | null>(null)
+const isReviewing = ref(false)
+
+const dateHeader = computed(() => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `#25年日记/${month}月 ${year}.${month}.${day}`
+})
+
+const wordCount = computed(() => {
+  return content.value.length
+})
+
+const handleTagInput = (e: KeyboardEvent) => {
+  if (e.key === 'Enter') {
+    const tag = newTag.value.trim().replace(/\s+/g, '')
+    if (tag && !tags.value.has(tag)) {
+      tags.value.add(tag)
+      newTag.value = ''
+    }
+  }
+}
+
+const handleTagClick = (tag: string) => {
+  if (tagToDelete.value === tag) {
+    // 如果标签已经处于待删除状态，点击则删除
+    tags.value.delete(tag)
+    tagToDelete.value = ''
+    if (deleteTimeout) {
+      clearTimeout(deleteTimeout)
+      deleteTimeout = null
+    }
+  } else {
+    // 设置标签为待删除状态
+    tagToDelete.value = tag
+    
+    // 清除之前的计时器（如果存在）
+    if (deleteTimeout) {
+      clearTimeout(deleteTimeout)
+    }
+    
+    // 设置新的计时器，1秒后恢复原状
+    deleteTimeout = window.setTimeout(() => {
+      if (tagToDelete.value === tag) {
+        tagToDelete.value = ''
+      }
+    }, 1000)
+  }
+}
+
+const handleTab = (e: KeyboardEvent) => {
+  const textarea = e.target as HTMLTextAreaElement
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+
+  content.value = content.value.substring(0, start) + '\t' + content.value.substring(end)
   
-  <script setup lang="ts">
-  import { ref, computed } from 'vue'
-  import SettingsModal from './SettingsModal.vue'
-  
-  const content = ref('')
-  const tags = ref<Set<string>>(new Set())
-  const newTag = ref('')
-  const tagToDelete = ref('')
-  let deleteTimeout: number | null = null
-  const showSettings = ref(false)
-  const isSubmitting = ref(false)
-  const showSuccess = ref(false)
-  
-  const dateHeader = computed(() => {
-    const now = new Date()
-    const year = now.getFullYear()
-    const month = now.getMonth() + 1
-    const day = now.getDate()
-    return `#日记/${month}月 ${year}.${month}.${day}`
+  // 保持光标位置在插入的制表符后面
+  nextTick(() => {
+    textarea.selectionStart = textarea.selectionEnd = start + 1
   })
-  
-  const handleTagInput = (e: KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      const tag = newTag.value.trim().replace(/\s+/g, '')
-      if (tag && !tags.value.has(tag)) {
-        tags.value.add(tag)
-        newTag.value = ''
-      }
-    }
-  }
-  
-  const handleTagClick = (tag: string) => {
-    if (tagToDelete.value === tag) {
-      // 如果标签已经处于待删除状态，点击则删除
-      tags.value.delete(tag)
-      tagToDelete.value = ''
-      if (deleteTimeout) {
-        clearTimeout(deleteTimeout)
-        deleteTimeout = null
-      }
-    } else {
-      // 设置标签为待删除状态
-      tagToDelete.value = tag
-      
-      // 清除之前的计时器（如果存在）
-      if (deleteTimeout) {
-        clearTimeout(deleteTimeout)
-      }
-      
-      // 设置新的计时器，1秒后恢复原状
-      deleteTimeout = window.setTimeout(() => {
-        if (tagToDelete.value === tag) {
-          tagToDelete.value = ''
-        }
-      }, 1000)
-    }
-  }
-  
-  const submitDiary = async () => {
-    const apiUrl = localStorage.getItem('apiUrl')
-    if (!apiUrl) {
-      alert('请先设置 API URL')
-      return
-    }
+}
 
-    // 构建内容，包含日期、正文和标签
-    const tagsText = Array.from(tags.value).map(tag => `#${tag}`).join(' ')
-    const fullContent = `${dateHeader.value}\n${content.value}\n${tagsText}`
+const submitDiary = async () => {
+  const apiUrl = localStorage.getItem('apiUrl')
+  if (!apiUrl) {
+    alert('请先设置 API URL')
+    return
+  }
 
-    isSubmitting.value = true
-    try {
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: fullContent
-        })
+  // 构建内容，包含日期、正文和标签
+  const tagsText = Array.from(tags.value).map(tag => `#${tag}`).join(' ')
+  const fullContent = `${dateHeader.value}\n${content.value}\n${tagsText}`
+
+  isSubmitting.value = true
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        content: fullContent
       })
+    })
 
-      if (response.ok) {
-        content.value = ''
-        tags.value.clear()
-        showSuccess.value = true
-        setTimeout(() => {
-          showSuccess.value = false
-        }, 2000)
-      } else {
-        throw new Error('发布失败')
-      }
-    } catch (error) {
-      alert(`发布失败：${error}`)
-    } finally {
-      isSubmitting.value = false
+    if (response.ok) {
+      content.value = ''
+      tags.value.clear()
+      showSuccess.value = true
+      setTimeout(() => {
+        showSuccess.value = false
+      }, 2000)
+    } else {
+      throw new Error('发布失败')
     }
+  } catch (error) {
+    alert(`发布失败：${error}`)
+  } finally {
+    isSubmitting.value = false
   }
+}
+
+const reviewDiary = async () => {
+  if (!content.value || isReviewing.value) return
   
-  const toggleSettings = () => {
-    showSettings.value = !showSettings.value
+  isReviewing.value = true
+  try {
+    reviewResult.value = await reviewDiaryApi(content.value, Array.from(tags.value))
+  } catch (error) {
+    console.error('Failed to review diary:', error)
+  } finally {
+    isReviewing.value = false
   }
-  
-  const saveSettings = (apiUrl: string) => {
-    localStorage.setItem('apiUrl', apiUrl)
-    showSettings.value = false
-  }
-  </script>
-  
-  <style scoped>
-  .container {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 40px 20px;
-  }
+}
 
-  .content-wrapper {
-    width: 100%;
-  }
+const toggleSettings = () => {
+  showSettings.value = !showSettings.value
+}
 
-  .header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 20px;
-  }
+const saveSettings = (apiUrl: string, config: any) => {
+  setLocalStorage('apiUrl', apiUrl)
+  setLocalStorage('llm_config', config)
+  showSettings.value = false
+}
+</script>
 
-  .settings-btn {
-    font-size: 20px;
-    cursor: pointer;
-    opacity: 0.6;
-    transition: opacity 0.3s;
-  }
+<style scoped>
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
 
-  .settings-btn:hover {
-    opacity: 1;
-  }
+.content-wrapper {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
 
-  .date-header {
-    font-size: 1.2em;
-    color: #666;
-    margin-bottom: 10px;
-  }
+.header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
 
-  .diary-input {
-    width: 100%;
-    height: 300px;
-    padding: 15px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-size: 16px;
-    resize: none;
-    background: white;
-    margin-bottom: 15px;
-    overflow-y: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
+.settings-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  width: 32px;
+}
 
-  .diary-input::-webkit-scrollbar {
-    display: none;
-  }
+.settings-btn:hover circle {
+  fill: #3aa876;
+}
 
-  .tag-section {
-    margin-bottom: 15px;
-  }
+.date-header {
+  font-size: 1.2em;
+  color: #666;
+  margin-bottom: 10px;
+}
 
-  .tag-input-container {
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-    min-height: 64px; /* 兼容两行标签的高度 */
-  }
+.input-wrapper {
+  margin-bottom: 20px;
+}
 
-  .tag-input {
-    width: 200px;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    height: 36px;
-  }
+.word-count {
+  text-align: right;
+  color: #999;
+  font-size: 14px;
+  margin-top: 8px;
+}
 
-  .tag-container {
-    flex: 1;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding-top: 4px;
-  }
+.diary-input {
+  width: 100%;
+  height: 500px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  resize: none;
+  background: white;
+  margin-bottom: 15px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
 
-  .tag {
-    padding: 4px 8px;
-    background: #e0e0e0;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.3s;
-    margin-bottom: 4px;
-  }
+.diary-input::-webkit-scrollbar {
+  display: none;
+}
 
-  .tag.delete {
-    background: #ff4444;
-    color: white;
-  }
+.tag-section {
+  margin-bottom: 15px;
+}
 
-  .submit-section {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    margin-top: 20px;
-  }
+.section-title {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 8px;
+}
 
-  .success-message {
-    position: absolute;
-    left: calc(50% + 70px);
-    color: #4CAF50;
-    font-size: 14px;
-  }
+.tag-input-container {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  min-height: 64px; /* 兼容两行标签的高度 */
+}
 
-  .fade-enter-active,
-  .fade-leave-active {
-    transition: opacity 0.3s ease;
-  }
+.tag-input {
+  width: 200px;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  height: 36px;
+}
 
-  .fade-enter-from,
-  .fade-leave-to {
-    opacity: 0;
-  }
+.tag-container {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
 
-  .submit-btn {
-    width: 120px;
-    padding: 12px;
-    background: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 16px;
-  }
+.tag {
+  padding: 4px 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-bottom: 4px;
+}
 
-  .submit-btn:hover {
-    background: #45a049;
-  }
+.tag.delete {
+  background: #ff4444;
+  color: white;
+}
 
-  .submit-btn:disabled {
-    background: #a5d6a7;
-    cursor: not-allowed;
-  }
-  </style>
+.button-group {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.review-btn {
+  padding: 0.6rem 1.2rem;
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.3s;
+}
+
+.review-btn:hover {
+  background-color: #1976D2;
+}
+
+.review-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.review-result {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.general-comment {
+  margin-bottom: 1.5rem;
+}
+
+.general-comment h3 {
+  color: #2196F3;
+  margin-bottom: 0.5rem;
+}
+
+.suggestions h3 {
+  color: #2196F3;
+  margin-bottom: 1rem;
+}
+
+.suggestion-item {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.suggestion {
+  color: #333;
+  margin-bottom: 0.8rem;
+}
+
+.comparison {
+  background-color: white;
+  padding: 1rem;
+  border-radius: 4px;
+}
+
+.original, .improved {
+  margin: 0.5rem 0;
+}
+
+.label {
+  color: #666;
+  margin-right: 0.5rem;
+  font-weight: 500;
+}
+
+.text {
+  color: #333;
+}
+
+.improved .text {
+  color: #4CAF50;
+}
+
+.submit-section {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.success-message {
+  position: absolute;
+  left: calc(50% + 70px);
+  color: #4CAF50;
+  font-size: 14px;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.submit-btn {
+  width: 120px;
+  padding: 12px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.submit-btn:hover {
+  background: #45a049;
+}
+
+.submit-btn:disabled {
+  background: #a5d6a7;
+  cursor: not-allowed;
+}
+</style>
