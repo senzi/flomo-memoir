@@ -79,9 +79,11 @@
   })
   
   const save = () => {
-    setLocalStorage('apiUrl', apiUrl.value)
+    // 处理 API URL，移除可能存在的引号
+    const cleanApiUrl = apiUrl.value.replace(/^["']|["']$/g, '').trim()
+    setLocalStorage('apiUrl', cleanApiUrl)
     setLocalStorage('llm_config', llmConfig.value)
-    emit('save', apiUrl.value, llmConfig.value)
+    emit('save', cleanApiUrl, llmConfig.value)
     emit('close')
   }
   

@@ -51,6 +51,12 @@
         <button @click="submitDiary" class="submit-btn" :disabled="!content">发布</button>
       </div>
 
+      <div class="submit-section">
+        <transition name="fade">
+          <span v-if="showSuccess" class="success-message">✨ 发布成功</span>
+        </transition>
+      </div>
+
       <div v-if="reviewResult" class="review-result">
         <div class="general-comment">
           <h3>整体评价</h3>
@@ -73,12 +79,6 @@
             </div>
           </div>
         </div>
-      </div>
-      
-      <div class="submit-section">
-        <transition name="fade">
-          <span v-if="showSuccess" class="success-message">✨ 发布成功</span>
-        </transition>
       </div>
     </div>
 
@@ -121,7 +121,8 @@ const dateHeader = computed(() => {
   const year = now.getFullYear()
   const month = String(now.getMonth() + 1).padStart(2, '0')
   const day = String(now.getDate()).padStart(2, '0')
-  return `#25年日记/${month}月 ${year}.${month}.${day}`
+  const weekDay = ['日', '一', '二', '三', '四', '五', '六'][now.getDay()]
+  return `#25年日记/${month}月 ${year}.${month}.${day} (${weekDay})`
 })
 
 const wordCount = computed(() => {
@@ -179,7 +180,7 @@ const handleTab = (e: KeyboardEvent) => {
 }
 
 const submitDiary = async () => {
-  const apiUrl = localStorage.getItem('apiUrl')
+  const apiUrl = localStorage.getItem('apiUrl')?.replace(/^["']|["']$/g, '') // 移除首尾的引号
   if (!apiUrl) {
     alert('请先设置 API URL')
     return
@@ -388,6 +389,23 @@ const saveSettings = (apiUrl: string, config: any) => {
   cursor: not-allowed;
 }
 
+.submit-section {
+  display: flex;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.success-message {
+  display: inline-block;
+  background-color: #4CAF50;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  margin-left: 12px;
+  font-size: 14px;
+  animation: fadeIn 0.3s ease-in;
+}
+
 .review-result {
   margin: 2rem 0;
   padding: 1.5rem;
@@ -451,22 +469,6 @@ const saveSettings = (apiUrl: string, config: any) => {
   color: #4CAF50;
 }
 
-.submit-section {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 20px;
-}
-
-.success-message {
-  position: absolute;
-  left: calc(50% + 70px);
-  color: #4CAF50;
-  font-size: 14px;
-}
-
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;
@@ -475,6 +477,17 @@ const saveSettings = (apiUrl: string, config: any) => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+@keyframes fadeIn {
+  from { 
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .submit-btn {
